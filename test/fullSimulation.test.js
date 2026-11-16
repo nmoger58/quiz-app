@@ -105,27 +105,28 @@ console.log("✓ Grand Finale screen and CSV Export generated successfully");
 
 // 5. Test Node.js HTTP Server & WebSocket
 console.log("\n--- Testing HTTP Static Server & WebSocket ---");
-const server = require('../server');
+const { server } = require('../server');
+const TEST_PORT = 3001;
 
-setTimeout(() => {
+server.listen(TEST_PORT, () => {
   // Test GET /
-  http.get('http://localhost:3000/', (res) => {
+  http.get(`http://localhost:${TEST_PORT}/`, (res) => {
     assert.strictEqual(res.statusCode, 200);
     assert(res.headers['content-type'].includes('text/html'));
     console.log("✓ HTTP GET / served 200 OK (Teacher Console)");
 
     // Test GET /projector
-    http.get('http://localhost:3000/projector', (res2) => {
+    http.get(`http://localhost:${TEST_PORT}/projector`, (res2) => {
       assert.strictEqual(res2.statusCode, 200);
       assert(res2.headers['content-type'].includes('text/html'));
       console.log("✓ HTTP GET /projector served 200 OK (Projector Display)");
 
       // Test WebSocket connection
-      const wsTeacher = new WebSocket('ws://localhost:3000/ws?sessionId=TEST_SIM&role=teacher');
+      const wsTeacher = new WebSocket(`ws://localhost:${TEST_PORT}/ws?sessionId=TEST_SIM&role=teacher`);
       wsTeacher.on('open', () => {
         console.log("✓ Teacher WebSocket connected");
 
-        const wsProjector = new WebSocket('ws://localhost:3000/ws?sessionId=TEST_SIM&role=projector');
+        const wsProjector = new WebSocket(`ws://localhost:${TEST_PORT}/ws?sessionId=TEST_SIM&role=projector`);
         wsProjector.on('open', () => {
           console.log("✓ Projector WebSocket connected");
 
@@ -135,10 +136,12 @@ setTimeout(() => {
               console.log("✓ Projector received real-time broadcast message from Teacher!");
               wsTeacher.close();
               wsProjector.close();
-              console.log("\n=======================================================");
-              console.log("ALL SIMULATION AND INTEGRATION TESTS PASSED!");
-              console.log("=======================================================\n");
-              process.exit(0);
+              server.close(() => {
+                console.log("\n=======================================================");
+                console.log("ALL SIMULATION AND INTEGRATION TESTS PASSED!");
+                console.log("=======================================================\n");
+                process.exit(0);
+              });
             }
           });
 
@@ -152,4 +155,4 @@ setTimeout(() => {
       });
     });
   });
-}, 500);
+});
