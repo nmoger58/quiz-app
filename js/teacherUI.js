@@ -359,9 +359,9 @@ class TeacherUI {
     const remainingCount = state.question.availableOptions.length;
     const currentPoints = ScoringSystem.getPointsForAttempt(isPhotoQuestion ? null : remainingCount, attemptNumber);
 
-    // Reset photo peek state if a new question or attempt begins
+    // Reset photo peek state if a new question or attempt begins, or during passing/evaluation
     const currentAttemptId = state.attempt ? state.attempt.attemptId : null;
-    if (this.lastPhotoAttemptId !== currentAttemptId) {
+    if (this.lastPhotoAttemptId !== currentAttemptId || state.display.phase === 'passing' || state.display.revealAnswer) {
       this.lastPhotoAttemptId = currentAttemptId;
       this.peekPhotoAnswer = false;
     }
@@ -433,7 +433,7 @@ class TeacherUI {
                       ಸರಿಯಾದ ಉತ್ತರ: 
                       ${state.display.revealAnswer ? `
                         <strong class="text-success">${state.question.correctAnswer}</strong>
-                      ` : (this.peekPhotoAnswer ? `
+                      ` : (this.peekPhotoAnswer && state.display.phase !== 'passing' ? `
                         <strong class="text-warning">${state.question.correctAnswer}</strong>
                       ` : `
                         <span class="badge bg-dark border border-secondary text-secondary fst-italic px-2 py-1">
@@ -442,7 +442,7 @@ class TeacherUI {
                       `)}
                     </span>
                     ${!state.display.revealAnswer ? `
-                      <button id="togglePhotoAnswerBtn" type="button" class="btn btn-outline-warning btn-sm ms-2" title="${this.peekPhotoAnswer ? 'ಉತ್ತರ ಮರೆಮಾಡಿ' : 'ಶಿಕ್ಷಕರಿಗೆ ಮಾತ್ರ: ಉತ್ತರ ನೋಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ [ಶಾರ್ಟ್‌ಕಟ್: V]'}">
+                      <button id="togglePhotoAnswerBtn" type="button" class="btn btn-outline-warning btn-sm ms-2" ${state.display.phase === 'passing' ? 'disabled' : ''} title="${this.peekPhotoAnswer ? 'ಉತ್ತರ ಮರೆಮಾಡಿ' : 'ಶಿಕ್ಷಕರಿಗೆ ಮಾತ್ರ: ಉತ್ತರ ನೋಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ [ಶಾರ್ಟ್‌ಕಟ್: V]'}">
                         <i data-lucide="${this.peekPhotoAnswer ? 'eye-off' : 'eye'}" class="me-1"></i>
                         ${this.peekPhotoAnswer ? 'ಮರೆಮಾಡಿ (Hide)' : 'ಉತ್ತರ ವೀಕ್ಷಿಸಿ (Peek Answer)'}
                       </button>
@@ -977,6 +977,7 @@ class TeacherUI {
     const togglePhotoAnswerBtn = document.getElementById('togglePhotoAnswerBtn');
     if (togglePhotoAnswerBtn) {
       togglePhotoAnswerBtn.onclick = () => {
+        if (this.engine.state.display.revealAnswer || this.engine.state.display.phase === 'passing') return;
         this.peekPhotoAnswer = !this.peekPhotoAnswer;
         this.renderQuizDashboard();
       };

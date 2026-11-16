@@ -937,6 +937,85 @@ runTest("Teacher UI dynamically suppresses photo answer during guessing and allo
   global.document = prevDoc;
 });
 
+runTest("Teacher UI suppresses photo answer during passing transitions (wrong/timeout/pass) and resets peek", () => {
+  const prevWindow = global.window;
+  const prevDoc = global.document;
+
+  global.window = { addEventListener: () => {} };
+  let htmlOutput = '';
+  const mockAppEl = {
+    set innerHTML(val) { htmlOutput = val; },
+    get innerHTML() { return htmlOutput; }
+  };
+  global.document = {
+    getElementById: (id) => (id === 'app' ? mockAppEl : null),
+    querySelectorAll: () => []
+  };
+
+  const { TeacherUI } = require('../js/teacherUI');
+  const engine = new QuizEngine();
+  engine.setupTeams(['ತಂಡ 1', 'ತಂಡ 2', 'ತಂಡ 3', 'ತಂಡ 4']);
+  engine.startCategory('photo');
+
+  engine.state.question.correctAnswer = 'ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್';
+  engine.state.display.revealAnswer = false;
+
+  const mockQM = new QuestionManager();
+  const mockTransport = { subscribe: () => {}, getConnectionStatus: () => ({}) };
+
+  const ui = new TeacherUI(engine, mockQM, mockTransport);
+  ui.renderQuizDashboard();
+
+  // 1. Wrong answer transition suppresses peeked answer and resets peekPhotoAnswer
+  ui.peekPhotoAnswer = true;
+  ui.renderQuizDashboard();
+  assert(htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Answer visible when peeked");
+
+  engine.evaluatePhotoAnswer(false);
+  assert.strictEqual(engine.state.display.phase, 'passing', "Must enter passing phase on wrong answer");
+  assert.strictEqual(ui.peekPhotoAnswer, false, "Must reset peekPhotoAnswer to false on wrong answer passing phase");
+  assert(!htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must NOT reveal answer during passing transition");
+  assert(htmlOutput.includes('•••••••• (ರಹಸ್ಯ - ಮರೆಮಾಡಲಾಗಿದೆ)'), "Must show masked answer during passing transition");
+  assert(htmlOutput.includes('disabled'), "Toggle button must be disabled during passing transition");
+
+  // 2. Timeout transition suppresses peeked answer
+  // Advance to next attempt
+  clearTimeout(engine.passTimeoutId);
+  engine.isEvaluating = false;
+  engine.state.display.phase = 'question';
+  engine.state.attempt.attemptId = 'attempt_mock_team2';
+  ui.renderQuizDashboard();
+  ui.peekPhotoAnswer = true;
+  ui.renderQuizDashboard();
+  assert(htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Answer visible when peeked in attempt 2");
+
+  engine.handleTimeout();
+  assert.strictEqual(engine.state.display.phase, 'passing', "Must enter passing phase on timeout");
+  assert.strictEqual(ui.peekPhotoAnswer, false, "Must reset peekPhotoAnswer on timeout");
+  assert(!htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must NOT reveal answer during timeout passing transition");
+
+  // 3. Manual pass transition suppresses peeked answer
+  clearTimeout(engine.passTimeoutId);
+  engine.isEvaluating = false;
+  engine.state.display.phase = 'question';
+  engine.state.attempt.attemptId = 'attempt_mock_team3';
+  ui.renderQuizDashboard();
+  ui.peekPhotoAnswer = true;
+  ui.renderQuizDashboard();
+  assert(htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Answer visible when peeked in attempt 3");
+
+  engine.passQuestion();
+  assert.strictEqual(engine.state.display.phase, 'passing', "Must enter passing phase on passQuestion");
+  assert.strictEqual(ui.peekPhotoAnswer, false, "Must reset peekPhotoAnswer on passQuestion");
+  assert(!htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must NOT reveal answer during passQuestion transition");
+
+  clearTimeout(engine.passTimeoutId);
+
+  // Restore globals
+  global.window = prevWindow;
+  global.document = prevDoc;
+});
+
 runTest("Projector UI rendering for photo questions suppresses options row", () => {
   const fs = require('fs');
   const projectorCode = fs.readFileSync('js/projectorUI.js', 'utf8');
