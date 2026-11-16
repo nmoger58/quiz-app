@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%">
+  <defs>
+    <linearGradient id="skyB" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="60%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#bae6fd"/>
+    </linearGradient>
+    <linearGradient id="granite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="60%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" fill="url(#skyB)"/>
+
+  <!-- Vindhyagiri Hill & Clouds -->
+  <path d="M 0 350 Q 200 280 400 310 Q 550 330 600 350 L 600 400 L 0 400 Z" fill="#64748b"/>
+  <circle cx="100" cy="90" r="35" fill="#f8fafc" opacity="0.7"/>
+  <circle cx="130" cy="85" r="45" fill="#f8fafc" opacity="0.7"/>
+  <circle cx="500" cy="110" r="40" fill="#f8fafc" opacity="0.7"/>
+
+  <!-- Gommateshwara 57-ft Monolith Statue -->
+  <!-- Lotus Pedestal -->
+  <ellipse cx="300" cy="340" rx="90" ry="18" fill="#cbd5e1" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Legs -->
+  <rect x="260" y="230" width="30" height="110" rx="6" fill="url(#granite)"/>
+  <rect x="310" y="230" width="30" height="110" rx="6" fill="url(#granite)"/>
+
+  <!-- Creepers / Vines (ಮಾಧವೀ ಲತೆ) carved around legs and arms -->
+  <path d="M 255 330 Q 275 300 255 270 Q 275 250 255 230" stroke="#15803d" stroke-width="3" fill="none"/>
+  <path d="M 345 330 Q 325 300 345 270 Q 325 250 345 230" stroke="#15803d" stroke-width="3" fill="none"/>
+
+  <!-- Torso & Chest -->
+  <path d="M 240 230 C 240 180 245 140 270 135 L 330 135 C 355 140 360 180 360 230 Z" fill="url(#granite)"/>
+
+  <!-- Long serene arms extending down to knees (Kayotsarga posture) -->
+  <rect x="220" y="140" width="22" height="130" rx="10" fill="url(#granite)"/>
+  <rect x="358" y="140" width="22" height="130" rx="10" fill="url(#granite)"/>
+
+  <!-- Head with serene meditative smile & curled hair -->
+  <ellipse cx="300" cy="100" rx="28" ry="32" fill="url(#granite)"/>
+  <!-- Curled hair ringlets -->
+  <path d="M 275 90 C 275 65 325 65 325 90 Z" fill="#334155"/>
+  <!-- Elongated ears -->
+  <path d="M 270 95 C 265 105 265 115 270 120" stroke="#334155" stroke-width="3" fill="none"/>
+  <path d="M 330 95 C 335 105 335 115 330 120" stroke="#334155" stroke-width="3" fill="none"/>
+
+  <!-- Serene facial features -->
+  <path d="M 285 95 Q 293 93 298 95" stroke="#1e293b" stroke-width="2" fill="none"/>
+  <path d="M 302 95 Q 307 93 315 95" stroke="#1e293b" stroke-width="2" fill="none"/>
+  <path d="M 292 115 Q 300 122 308 115" stroke="#1e293b" stroke-width="2" fill="none"/>
+
+  <text x="300" y="380" font-family="'Noto Sans Kannada', sans-serif" font-size="22" font-weight="bold" fill="#0f172a" text-anchor="middle">ಗೊಮ್ಮಟೇಶ್ವರ ಬಾಹುಬಲಿ - ಶ್ರವಣಬೆಳಗೊಳ</text>
+</svg>

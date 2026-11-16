@@ -1,0 +1,16 @@
+{
+  "name": "kannada-quiz-arena",
+  "version": "1.0.0",
+  "description": "ಕನ್ನಡ ಕ್ವಿಜ್ ಅರೆನಾ - Synchronized Teacher Console & Projector Display",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/quiz.test.js && node test/fullSimulation.test.js"
+  },
+  "keywords": ["kannada", "quiz", "arena", "projector", "websocket"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.23.0"
+  }
+}

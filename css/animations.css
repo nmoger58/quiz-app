@@ -1,0 +1,43 @@
+/* ==========================================================================
+   ಕನ್ನಡ ಕ್ವಿಜ್ ಅರೆನಾ - Custom Animations & Micro-Interactions
+   ========================================================================== */
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(245, 158, 11, 0.85); }
+  100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+}
+
+@keyframes eliminateStrike {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.96); filter: grayscale(80%); }
+  100% { opacity: 0.35; transform: scale(1); filter: grayscale(100%); }
+}
+
+@keyframes winnerReveal {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.active-team-box {
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+.option-eliminated {
+  animation: eliminateStrike 0.5s forwards ease;
+}
+
+.winner-box, .winner-spotlight {
+  animation: winnerReveal 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Question Photo Fade-in */
+.quiz-photo-img, .projector-photo-img {
+  animation: fadeIn 0.4s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
