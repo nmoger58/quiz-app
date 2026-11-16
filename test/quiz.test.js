@@ -869,6 +869,74 @@ runTest("Teacher UI rendering for photo questions renders Right and Wrong button
   assert(teacherCode.includes('evaluatePhotoAnswer(false)'), "Must call evaluatePhotoAnswer(false)");
 });
 
+runTest("Teacher UI hides answer during photo guessing round by default with teacher peek toggle", () => {
+  const fs = require('fs');
+  const teacherCode = fs.readFileSync('js/teacherUI.js', 'utf8');
+
+  // Verify answer is hidden while guessing
+  assert(teacherCode.includes('this.peekPhotoAnswer'), "Must have peekPhotoAnswer property");
+  assert(teacherCode.includes('togglePhotoAnswerBtn'), "Must have togglePhotoAnswerBtn");
+  assert(teacherCode.includes('•••••••• (ರಹಸ್ಯ - ಮರೆಮಾಡಲಾಗಿದೆ)'), "Must display masked placeholder during guessing");
+  assert(teacherCode.includes("e.key === 'v' || e.key === 'V'"), "Must have V key shortcut for peeking answer");
+
+  // Verify correct answer is revealed when revealAnswer is true
+  assert(teacherCode.includes('state.display.revealAnswer'), "Must condition on display.revealAnswer");
+  assert(teacherCode.includes('<strong class="text-success">${state.question.correctAnswer}</strong>'), "Must reveal answer when evaluated");
+});
+
+runTest("Teacher UI dynamically suppresses photo answer during guessing and allows teacher peek", () => {
+  const prevWindow = global.window;
+  const prevDoc = global.document;
+
+  global.window = { addEventListener: () => {} };
+  let htmlOutput = '';
+  const mockAppEl = {
+    set innerHTML(val) { htmlOutput = val; },
+    get innerHTML() { return htmlOutput; }
+  };
+  global.document = {
+    getElementById: (id) => (id === 'app' ? mockAppEl : null),
+    querySelectorAll: () => []
+  };
+
+  const { TeacherUI } = require('../js/teacherUI');
+  const engine = new QuizEngine();
+  engine.setupTeams(['ತಂಡ 1', 'ತಂಡ 2']);
+  engine.startCategory('photo');
+
+  // Specific user test case: Isaac Newton
+  engine.state.question.correctAnswer = 'ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್';
+  engine.state.display.revealAnswer = false;
+
+  const mockQM = new QuestionManager();
+  const mockTransport = { subscribe: () => {}, getConnectionStatus: () => ({}) };
+
+  const ui = new TeacherUI(engine, mockQM, mockTransport);
+  ui.renderQuizDashboard();
+
+  // 1. By default while guessing: Answer MUST NOT be revealed in HTML
+  assert(!htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must NOT reveal 'ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್' while guessing");
+  assert(htmlOutput.includes('•••••••• (ರಹಸ್ಯ - ಮರೆಮಾಡಲಾಗಿದೆ)'), "Must show masked answer placeholder");
+  assert(htmlOutput.includes('id="togglePhotoAnswerBtn"'), "Must show toggle button for teacher");
+
+  // 2. When teacher peeks: Answer is revealed with option to hide
+  ui.peekPhotoAnswer = true;
+  ui.renderQuizDashboard();
+  assert(htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must reveal answer when peeked by teacher");
+  assert(htmlOutput.includes('ಮರೆಮಾಡಿ (Hide)'), "Must show hide button while peeked");
+
+  // 3. When question is officially evaluated: Answer is revealed and toggle button is removed
+  ui.peekPhotoAnswer = false;
+  engine.state.display.revealAnswer = true;
+  ui.renderQuizDashboard();
+  assert(htmlOutput.includes('ಸರ್ ಐಸಾಕ್ ನ್ಯೂಟನ್'), "Must reveal answer when attempt is officially evaluated");
+  assert(!htmlOutput.includes('id="togglePhotoAnswerBtn"'), "Toggle button must not appear after answer is officially revealed");
+
+  // Restore globals
+  global.window = prevWindow;
+  global.document = prevDoc;
+});
+
 runTest("Projector UI rendering for photo questions suppresses options row", () => {
   const fs = require('fs');
   const projectorCode = fs.readFileSync('js/projectorUI.js', 'utf8');

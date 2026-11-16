@@ -12,6 +12,8 @@ class TeacherUI {
     this.timerCircle = null;
     this.isAuditingOpen = false;
     this.isLeaderboardOpen = false;
+    this.peekPhotoAnswer = false;
+    this.lastPhotoAttemptId = null;
 
     this._bindEvents();
     this._bindKeyboardShortcuts();
@@ -357,6 +359,13 @@ class TeacherUI {
     const remainingCount = state.question.availableOptions.length;
     const currentPoints = ScoringSystem.getPointsForAttempt(isPhotoQuestion ? null : remainingCount, attemptNumber);
 
+    // Reset photo peek state if a new question or attempt begins
+    const currentAttemptId = state.attempt ? state.attempt.attemptId : null;
+    if (this.lastPhotoAttemptId !== currentAttemptId) {
+      this.lastPhotoAttemptId = currentAttemptId;
+      this.peekPhotoAnswer = false;
+    }
+
     appEl.innerHTML = `
       ${this._getHeaderHtml(`${state.currentCategoryName} (ಪ್ರಶ್ನೆ ${qIndex + 1}/${totalQ})`)}
 
@@ -417,10 +426,27 @@ class TeacherUI {
 
               ${isPhotoQuestion ? `
                 <!-- GUESS THE PHOTO: NO OPTIONS - TEACHER ANSWER KEY & 2 BUTTONS (RIGHT / WRONG) -->
-                <div class="teacher-answer-key-box p-3 mb-4 rounded bg-dark border border-warning border-opacity-50 text-warning d-flex align-items-center justify-content-between">
-                  <div>
+                <div class="teacher-answer-key-box p-3 mb-4 rounded bg-dark border border-warning border-opacity-50 text-warning d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <div class="d-flex align-items-center flex-wrap gap-2">
                     <span class="badge bg-warning text-dark me-2 fs-6"><i data-lucide="key" class="me-1"></i> ಶಿಕ್ಷಕರ ಉತ್ತರ ಕೀ (Answer Key)</span>
-                    <span class="fs-5 font-kannada">ಸರಿಯಾದ ಉತ್ತರ: <strong>${state.question.correctAnswer}</strong></span>
+                    <span class="fs-5 font-kannada">
+                      ಸರಿಯಾದ ಉತ್ತರ: 
+                      ${state.display.revealAnswer ? `
+                        <strong class="text-success">${state.question.correctAnswer}</strong>
+                      ` : (this.peekPhotoAnswer ? `
+                        <strong class="text-warning">${state.question.correctAnswer}</strong>
+                      ` : `
+                        <span class="badge bg-dark border border-secondary text-secondary fst-italic px-2 py-1">
+                          <i data-lucide="eye-off" class="me-1"></i> •••••••• (ರಹಸ್ಯ - ಮರೆಮಾಡಲಾಗಿದೆ)
+                        </span>
+                      `)}
+                    </span>
+                    ${!state.display.revealAnswer ? `
+                      <button id="togglePhotoAnswerBtn" type="button" class="btn btn-outline-warning btn-sm ms-2" title="${this.peekPhotoAnswer ? 'ಉತ್ತರ ಮರೆಮಾಡಿ' : 'ಶಿಕ್ಷಕರಿಗೆ ಮಾತ್ರ: ಉತ್ತರ ನೋಡಲು ಕ್ಲಿಕ್ ಮಾಡಿ [ಶಾರ್ಟ್‌ಕಟ್: V]'}">
+                        <i data-lucide="${this.peekPhotoAnswer ? 'eye-off' : 'eye'}" class="me-1"></i>
+                        ${this.peekPhotoAnswer ? 'ಮರೆಮಾಡಿ (Hide)' : 'ಉತ್ತರ ವೀಕ್ಷಿಸಿ (Peek Answer)'}
+                      </button>
+                    ` : ''}
                   </div>
                   <span class="badge bg-success fs-6 px-3 py-2">+${currentPoints} ಅಂಕಗಳು</span>
                 </div>
@@ -496,7 +522,7 @@ class TeacherUI {
                       </h4>
                       <p class="mb-1 fs-5">
                         ${state.attempt.result === 'CORRECT' 
-                          ? `<strong>${state.attempt.teamName}</strong> ಗೆ <span class="badge bg-warning text-dark">+${state.attempt.pointsAwarded} ಅಂಕಗಳು!</span>`
+                          ? `<strong>${state.attempt.teamName}</strong> ಗೆ <span class="badge bg-warning text-dark me-2">+${state.attempt.pointsAwarded} ಅಂಕಗಳು!</span> <span class="text-light">| ಸರಿಯಾದ ಉತ್ತರ: <strong class="text-warning">${state.question.correctAnswer}</strong></span>`
                           : `ಸರಿಯಾದ ಉತ್ತರ: <strong>${state.question.correctAnswer}</strong>`}
                       </p>
                       ${state.question.explanation ? `
@@ -945,6 +971,14 @@ class TeacherUI {
       photoWrongBtn.onclick = () => {
         if (typeof soundManager !== 'undefined') soundManager.init();
         this.engine.evaluatePhotoAnswer(false);
+      };
+    }
+
+    const togglePhotoAnswerBtn = document.getElementById('togglePhotoAnswerBtn');
+    if (togglePhotoAnswerBtn) {
+      togglePhotoAnswerBtn.onclick = () => {
+        this.peekPhotoAnswer = !this.peekPhotoAnswer;
+        this.renderQuizDashboard();
       };
     }
 
@@ -1768,6 +1802,10 @@ class TeacherUI {
             e.preventDefault();
             if (typeof soundManager !== 'undefined') soundManager.init();
             this.engine.evaluatePhotoAnswer(false);
+          } else if ((e.key === 'v' || e.key === 'V') && !this.engine.state.display.revealAnswer && this.engine.state.display.phase !== 'passing') {
+            e.preventDefault();
+            this.peekPhotoAnswer = !this.peekPhotoAnswer;
+            this.renderQuizDashboard();
           }
         } else {
           // Numbers 1, 2, 3, 4 to select options A, B, C, D

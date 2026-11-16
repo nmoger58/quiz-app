@@ -341,6 +341,16 @@ body {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
+#togglePhotoAnswerBtn {
+  font-size: 0.825rem;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease-in-out;
+}
+
+#togglePhotoAnswerBtn:hover {
+  transform: translateY(-1px);
+}
+
 .projector-photo-hero {
   box-shadow: 0 0 35px rgba(245, 158, 11, 0.35), 0 10px 30px rgba(0, 0, 0, 0.6) !important;
   border: 3px solid rgba(245, 158, 11, 0.7) !important;
