@@ -40,6 +40,8 @@
   <script src="js/questions.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/transport.js"></script>
+  <script src="js/quizState.js"></script>
+  <script src="js/teamManager.js"></script>
   <script src="js/scoringSystem.js"></script>
   <script src="js/leaderboard.js"></script>
   <script src="js/projectorUI.js"></script>
@@ -59,18 +61,20 @@
       // Check if there is already a saved public snapshot in storage
       const savedSession = StorageManager.loadSession(sessionId);
       if (savedSession) {
-        // Build public projection to avoid revealing answer prematurely
-        projectorUI.handleIncomingEvent({
-          type: 'STATE_SNAPSHOT',
-          revision: savedSession.revision || 1,
-          state: {
+        const publicState = typeof createPublicQuizState === 'function' 
+          ? createPublicQuizState(savedSession)
+          : {
             ...savedSession,
             question: {
               ...savedSession.question,
               correctAnswer: savedSession.display && savedSession.display.revealAnswer ? savedSession.question.correctAnswer : null,
               explanation: savedSession.display && savedSession.display.revealAnswer ? savedSession.question.explanation : null
             }
-          }
+          };
+        projectorUI.handleIncomingEvent({
+          type: 'STATE_SNAPSHOT',
+          revision: savedSession.revision || 1,
+          state: publicState
         });
       }
     });

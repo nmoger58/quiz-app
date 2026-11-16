@@ -248,3 +248,105 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(245, 158, 11, 0.8);
 }
+
+/* ==========================================================================
+   Traditional Kannada Storytelling Aesthetic for Riddles (ಒಗಟುಗಳು)
+   ========================================================================== */
+.riddle-story-card {
+  background: radial-gradient(circle at 50% 30%, rgba(45, 26, 12, 0.85) 0%, rgba(20, 10, 5, 0.95) 100%) !important;
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 16px 40px rgba(245, 158, 11, 0.25), inset 0 0 25px rgba(245, 158, 11, 0.1) !important;
+  position: relative;
+}
+
+.riddle-story-card::before {
+  content: "✨ ಒಗಟು ಕಥಾನಕ ✨";
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #f59e0b;
+  color: #1a0800;
+  font-family: 'Noto Sans Kannada', sans-serif;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 2px 18px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  letter-spacing: 1px;
+}
+
+.riddle-parchment-box {
+  background: rgba(254, 243, 199, 0.08) !important;
+  border: 1px dashed rgba(245, 158, 11, 0.5) !important;
+  border-radius: 14px;
+}
+
+.riddle-question-text {
+  font-family: 'Noto Serif Kannada', 'Noto Sans Kannada', serif !important;
+  color: #fef3c7 !important;
+  letter-spacing: 0.5px;
+}
+
+/* Question Manager Modal Specifics */
+.qm-question-item {
+  transition: all 0.2s ease;
+}
+
+.qm-question-item:hover {
+  background: rgba(30, 41, 59, 0.95) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+}
+
+.qm-image-preview {
+  max-height: 120px;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   Guess the Photo (ಚಿತ್ರ ನೋಡಿ ಉತ್ತರಿಸಿ) Styles
+   ========================================================================== */
+.btn-photo-right {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border: 2px solid #34d399 !important;
+  color: #ffffff !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-photo-right:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4) !important;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+}
+
+.btn-photo-wrong {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border: 2px solid #f87171 !important;
+  color: #ffffff !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-photo-wrong:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4) !important;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+}
+
+.teacher-answer-key-box {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.projector-photo-hero {
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.35), 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  border: 3px solid rgba(245, 158, 11, 0.7) !important;
+  transition: transform 0.3s ease;
+}
+
+.projector-photo-hero:hover {
+  transform: scale(1.02);
+}

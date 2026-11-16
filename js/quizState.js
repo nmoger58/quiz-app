@@ -73,10 +73,12 @@ function createInitialQuizState(sessionId = 'KA-DEMO') {
       revealAnswer: false,
       passMessage: "",
       passSubMessage: "",
-      winnerTeam: null
+      winnerTeam: null,
+      passUntil: null
     },
 
-    processedAttemptIds: []
+    processedAttemptIds: [],
+    completedQuestionIds: []
   };
 }
 
@@ -87,14 +89,16 @@ function createInitialQuizState(sessionId = 'KA-DEMO') {
 function createPublicQuizState(state) {
   if (!state) return null;
 
+  const isPhoto = state.question.type === 'photo' || state.question.categoryId === 'photo' || state.currentCategoryId === 'photo';
+
   const publicQuestion = {
     id: state.question.id,
     category: state.question.category,
     categoryId: state.question.categoryId,
     text: state.question.text,
-    options: [...state.question.options],
-    eliminatedOptions: [...state.question.eliminatedOptions],
-    availableOptions: [...state.question.availableOptions],
+    options: isPhoto ? [] : [...state.question.options],
+    eliminatedOptions: isPhoto ? [] : [...state.question.eliminatedOptions],
+    availableOptions: isPhoto ? [] : [...state.question.availableOptions],
     type: state.question.type,
     image: state.question.image,
     // Only reveal correct answer after evaluation!
@@ -155,8 +159,10 @@ function createPublicQuizState(state) {
       revealAnswer: state.display.revealAnswer,
       passMessage: state.display.passMessage,
       passSubMessage: state.display.passSubMessage,
-      winnerTeam: state.display.winnerTeam ? { ...state.display.winnerTeam } : null
-    }
+      winnerTeam: state.display.winnerTeam ? { ...state.display.winnerTeam } : null,
+      passUntil: state.display.passUntil || null
+    },
+    completedQuestionIds: [...(state.completedQuestionIds || [])]
   };
 }
 

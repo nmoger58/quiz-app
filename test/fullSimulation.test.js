@@ -92,6 +92,23 @@ const totalPointsInGame = engine.state.teams.reduce((sum, t) => sum + t.score, 0
 assert(totalPointsInGame >= 120, `Cumulative scores must accumulate across sections! Total points: ${totalPointsInGame}`);
 console.log(`✓ Completed Sports section. Cumulative total points in game: ${totalPointsInGame}`);
 
+// 3.5. Play through Category 5: Guess the Photo (No Options, Right/Wrong flow)
+engine.startCategory('photo');
+assert.strictEqual(engine.state.currentCategoryId, 'photo');
+assert.deepStrictEqual(engine.state.question.options, []);
+
+// Q1: Team 1 wrong (no deduction), Team 2 right (+5)
+const activeIdx = engine.state.rotation.activeTeamIndex;
+const tBefore = engine.state.teams[activeIdx].score;
+engine.evaluatePhotoAnswer(false); // wrong
+assert.strictEqual(engine.state.teams[activeIdx].score, tBefore, "Wrong answer must not deduct points");
+engine.evaluatePhotoAnswer(true); // right on attempt 2 (+5)
+engine.nextQuestion();
+
+// Q2: Right on attempt 1 (+10)
+engine.evaluatePhotoAnswer(true);
+console.log("✓ Completed Guess the Photo section simulation with Right/Wrong flow without point deductions");
+
 // 4. Test Grand Finale & CSV Export
 engine.showGrandFinale();
 assert.strictEqual(engine.state.status, 'finished');

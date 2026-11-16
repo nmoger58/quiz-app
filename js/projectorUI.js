@@ -167,8 +167,9 @@ class ProjectorUI {
     const activeTeam = this.state.teams[this.state.rotation.activeTeamIndex];
     const catName = this.state.currentCategoryName || q.category;
     const qNum = this.state.currentQuestionIndex + 1;
+    const isPhotoQuestion = q.type === 'photo' || q.categoryId === 'photo' || (this.state && this.state.currentCategoryId === 'photo') || !q.options || q.options.length === 0;
     const remainingCount = q.availableOptions.length;
-    const currentPoints = ScoringSystem.getPointsForAttempt(remainingCount, attempt.attemptNumber);
+    const currentPoints = ScoringSystem.getPointsForAttempt(isPhotoQuestion ? null : remainingCount, attempt.attemptNumber);
 
     root.innerHTML = `
       <div class="projector-container d-flex flex-column min-vh-100 p-4">
@@ -179,7 +180,7 @@ class ProjectorUI {
             <div>
               <h2 class="font-kannada text-warning fw-bold mb-0">ಕನ್ನಡ ಕ್ವಿಜ್ ಅರೆನಾ</h2>
               <span class="badge bg-danger text-warning fs-5 px-3 py-1 rounded-pill">
-                ವಿಭಾಗ: ${catName} | ಪ್ರಶ್ನೆ ${qNum}
+                ${isPhotoQuestion ? '📷' : 'ವಿಭಾಗ:'} ${catName} | ಪ್ರಶ್ನೆ ${qNum}
               </span>
             </div>
           </div>
@@ -207,76 +208,93 @@ class ProjectorUI {
         <div class="projector-main-body flex-grow-1 d-flex flex-column justify-content-center">
           
           <!-- Photo Display for Guess the Photo -->
-          ${q.type === 'photo' && q.image ? `
+          ${isPhotoQuestion || q.type === 'photo' || q.image ? `
             <div class="projector-photo-wrap text-center mb-3">
-              <img src="${q.image}" alt="Quiz Photo" class="projector-photo-img rounded border border-warning shadow-lg"
-                style="max-height: 280px; width: auto; object-fit: contain;">
+              <img src="${q.image || 'assets/images/photo_placeholder.svg'}" 
+                onerror="this.src='assets/images/photo_placeholder.svg'"
+                alt="Quiz Photo" class="projector-photo-img rounded border border-warning shadow-lg ${isPhotoQuestion ? 'projector-photo-hero' : ''}"
+                style="${isPhotoQuestion ? 'max-height: 420px;' : 'max-height: 280px;'} width: auto; object-fit: contain;">
             </div>
           ` : ''}
 
-          <!-- Large Question Box -->
-          <div class="projector-question-card p-4 rounded-4 bg-dark bg-opacity-75 border border-secondary shadow-lg mb-4 text-center">
-            <h1 class="display-6 font-kannada text-light fw-bold mb-0 lh-base text-shadow">
+          <!-- Large Question Box (Storytelling aesthetic for Riddles) -->
+          <div class="projector-question-card p-4 rounded-4 shadow-lg mb-4 text-center ${q.categoryId === 'riddles' ? 'riddle-story-card' : 'bg-dark bg-opacity-75 border border-secondary'}">
+            ${q.categoryId === 'riddles' ? `
+              <div class="mb-2"><span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold">📜 ಸಾಂಪ್ರದಾಯಿಕ ಕನ್ನಡ ಒಗಟು</span></div>
+            ` : ''}
+            ${isPhotoQuestion ? `
+              <div class="mb-2"><span class="badge bg-warning text-dark px-3 py-1 rounded-pill fw-bold fs-6">📷 ಚಿತ್ರ ನೋಡಿ ಉತ್ತರಿಸಿ (Guess the Photo)</span></div>
+            ` : ''}
+            <h1 class="display-6 font-kannada fw-bold mb-0 lh-base text-shadow ${q.categoryId === 'riddles' ? 'riddle-question-text text-warning' : 'text-light'}">
               ${q.text}
             </h1>
           </div>
 
-          <!-- 4 LARGE AUDIENCE OPTION CARDS -->
-          <div class="row g-4 projector-options-row">
-            ${q.options.map((opt, idx) => {
-              const label = String.fromCharCode(65 + idx);
-              const isEliminated = q.eliminatedOptions.includes(opt);
-              const isCorrect = (opt === q.correctAnswer);
-              const isSelected = (opt === attempt.selectedOption);
+          <!-- 4 LARGE AUDIENCE OPTION CARDS (Only for non-photo questions) -->
+          ${!isPhotoQuestion && q.options && q.options.length > 0 ? `
+            <div class="row g-4 projector-options-row">
+              ${q.options.map((opt, idx) => {
+                const label = String.fromCharCode(65 + idx);
+                const isEliminated = q.eliminatedOptions.includes(opt);
+                const isCorrect = (opt === q.correctAnswer);
+                const isSelected = (opt === attempt.selectedOption);
 
-              let cardStyle = "bg-dark bg-opacity-75 border-secondary";
-              let badgeStyle = "bg-primary text-white";
-              let textStyle = "text-light";
+                let cardStyle = "bg-dark bg-opacity-75 border-secondary";
+                let badgeStyle = "bg-primary text-white";
+                let textStyle = "text-light";
 
-              if (isEliminated) {
-                cardStyle = "bg-secondary bg-opacity-10 border-danger border-opacity-25 opacity-40";
-                badgeStyle = "bg-secondary text-muted";
-                textStyle = "text-muted text-decoration-line-through";
-              } else if (isRevealed && isCorrect) {
-                cardStyle = "bg-success bg-opacity-25 border-success border-3 shadow-lg animate__animated animate__pulse animate__infinite";
-                badgeStyle = "bg-success text-white fw-bold";
-                textStyle = "text-warning fw-bold";
-              } else if (isRevealed && isSelected && !isCorrect) {
-                cardStyle = "bg-danger bg-opacity-25 border-danger";
-                badgeStyle = "bg-danger text-white";
-                textStyle = "text-danger";
-              }
+                if (isEliminated) {
+                  cardStyle = "bg-secondary bg-opacity-10 border-danger border-opacity-25 opacity-40";
+                  badgeStyle = "bg-secondary text-muted";
+                  textStyle = "text-muted text-decoration-line-through";
+                } else if (isRevealed && isCorrect) {
+                  cardStyle = "bg-success bg-opacity-25 border-success border-3 shadow-lg animate__animated animate__pulse animate__infinite";
+                  badgeStyle = "bg-success text-white fw-bold";
+                  textStyle = "text-warning fw-bold";
+                } else if (isRevealed && isSelected && !isCorrect) {
+                  cardStyle = "bg-danger bg-opacity-25 border-danger";
+                  badgeStyle = "bg-danger text-white";
+                  textStyle = "text-danger";
+                }
 
-              return `
-                <div class="col-6">
-                  <div class="card projector-option-card p-4 rounded-3 border ${cardStyle} h-100 position-relative shadow">
-                    <div class="d-flex align-items-center">
-                      <span class="badge ${badgeStyle} fs-2 px-3 py-2 me-4 rounded-2">${label}</span>
-                      <span class="font-kannada fs-3 fw-bold ${textStyle}">${opt}</span>
+                return `
+                  <div class="col-6">
+                    <div class="card projector-option-card p-4 rounded-3 border ${cardStyle} h-100 position-relative shadow">
+                      <div class="d-flex align-items-center">
+                        <span class="badge ${badgeStyle} fs-2 px-3 py-2 me-4 rounded-2">${label}</span>
+                        <span class="font-kannada fs-3 fw-bold ${textStyle}">${opt}</span>
+                      </div>
+                      ${isEliminated ? `
+                        <span class="badge bg-danger position-absolute top-0 end-0 m-3 fs-6">ತೆಗೆದುಹಾಕಲಾಗಿದೆ</span>
+                      ` : ''}
+                      ${isRevealed && isCorrect ? `
+                        <span class="badge bg-success position-absolute top-0 end-0 m-3 fs-5">✓ ಸರಿಯಾದ ಉತ್ತರ</span>
+                      ` : ''}
                     </div>
-                    ${isEliminated ? `
-                      <span class="badge bg-danger position-absolute top-0 end-0 m-3 fs-6">ತೆಗೆದುಹಾಕಲಾಗಿದೆ</span>
-                    ` : ''}
-                    ${isRevealed && isCorrect ? `
-                      <span class="badge bg-success position-absolute top-0 end-0 m-3 fs-5">✓ ಸರಿಯಾದ ಉತ್ತರ</span>
-                    ` : ''}
                   </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
+                `;
+              }).join('')}
+            </div>
+          ` : ''}
 
           <!-- ANSWER REVEAL CELEBRATION BANNER -->
           ${isRevealed ? `
             <div class="mt-4 p-4 rounded-4 alert ${attempt.result === 'CORRECT' ? 'alert-success' : 'alert-info'} border-3 shadow-lg text-center animate__animated animate__bounceIn">
               <h2 class="font-kannada fw-bold mb-1">
-                ${attempt.result === 'CORRECT' ? `🎉 ಅದ್ಭುತ! ಸರಿಯಾದ ಉತ್ತರ!` : `ಸರಿಯಾದ ಉತ್ತರ: ${q.correctAnswer}`}
+                ${attempt.result === 'CORRECT' ? `🎉 ಅದ್ಭುತ! ಸರಿಯಾದ ಉತ್ತರ!` : (this.state.display.passMessage || `ಸರಿಯಾದ ಉತ್ತರ: ${q.correctAnswer}`)}
               </h2>
               ${attempt.result === 'CORRECT' ? `
-                <div class="fs-3 font-kannada">
+                <div class="fs-3 font-kannada mb-2">
                   <strong>${attempt.teamName}</strong> ತಂಡಕ್ಕೆ <span class="badge bg-warning text-dark fs-3">+${attempt.pointsAwarded} ಅಂಕಗಳು!</span>
                 </div>
-              ` : ''}
+                <div class="fs-4 font-kannada text-warning">
+                  ಸರಿಯಾದ ಉತ್ತರ: <strong>${q.correctAnswer}</strong>
+                </div>
+              ` : `
+                <div class="fs-3 font-kannada text-warning my-2">
+                  ಸರಿಯಾದ ಉತ್ತರ: <strong>${q.correctAnswer}</strong>
+                </div>
+              `}
               ${q.explanation ? `
                 <p class="fs-5 text-light opacity-90 mt-2 mb-0">${q.explanation}</p>
               ` : ''}
@@ -336,7 +354,7 @@ class ProjectorUI {
     root.innerHTML = `
       <div class="projector-passing-screen d-flex flex-column justify-content-center align-items-center text-center p-5 min-vh-100 animate__animated animate__fadeIn">
         <div class="pass-warning-badge mb-4">
-          <span class="badge bg-danger fs-1 px-5 py-3 rounded-pill border border-warning shadow-lg animate__animated animate__shakeX">
+          <span class="badge ${display.passMessage === 'ಪ್ರಶ್ನೆ ಪಾಸ್ ಆಗಿದೆ!' ? 'bg-warning text-dark' : 'bg-danger'} fs-1 px-5 py-3 rounded-pill border border-warning shadow-lg animate__animated animate__shakeX">
             ${display.passMessage || 'ತಪ್ಪು ಉತ್ತರ / ಸಮಯ ಮುಗಿದಿದೆ!'}
           </span>
         </div>

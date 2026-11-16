@@ -8,14 +8,15 @@ class ScoringSystem {
   /**
    * Calculates points for a correct answer based on remaining options count
    */
-  static getPointsForAttempt(remainingOptionsCount, attemptNumber) {
-    if (remainingOptionsCount >= 4 || attemptNumber === 1) {
-      return 10;
-    } else if (remainingOptionsCount === 3 || attemptNumber === 2) {
-      return 5;
-    } else {
-      return 3; // 2 options remaining or attempt 3 onwards
+  static getPointsForAttempt(remainingOptionsCount, attemptNumber = 1) {
+    if (remainingOptionsCount !== undefined && remainingOptionsCount !== null && remainingOptionsCount > 0) {
+      if (remainingOptionsCount >= 4) return 10;
+      if (remainingOptionsCount === 3) return 5;
+      return 3;
     }
+    if (attemptNumber === 1) return 10;
+    if (attemptNumber === 2) return 5;
+    return 3;
   }
 
   /**

@@ -50,9 +50,15 @@ class TeacherUI {
         if (state.attempt.result === 'CORRECT') soundManager.playCorrect();
         else soundManager.playWrong();
       } else if (eventType === 'TEAM_PASSED') {
-        soundManager.playPass();
+        if (state.attempt && state.attempt.result === 'WRONG') {
+          soundManager.playWrong();
+        } else {
+          soundManager.playPass();
+        }
       } else if (eventType === 'TIMEOUT_OCCURRED') {
         soundManager.playTimeout();
+      } else if (eventType === 'QUESTION_EXHAUSTED') {
+        soundManager.playWrong();
       } else if (eventType === 'GRAND_FINALE') {
         soundManager.playVictory();
         LeaderboardRenderer.triggerConfetti();
@@ -347,8 +353,9 @@ class TeacherUI {
     const totalQ = catQuestions.length;
     const activeTeam = state.teams[state.rotation.activeTeamIndex];
     const attemptNumber = state.attempt.attemptNumber;
+    const isPhotoQuestion = state.question.type === 'photo' || state.currentCategoryId === 'photo' || state.question.categoryId === 'photo';
     const remainingCount = state.question.availableOptions.length;
-    const currentPoints = ScoringSystem.getPointsForAttempt(remainingCount, attemptNumber);
+    const currentPoints = ScoringSystem.getPointsForAttempt(isPhotoQuestion ? null : remainingCount, attemptNumber);
 
     appEl.innerHTML = `
       ${this._getHeaderHtml(`${state.currentCategoryName} (ಪ್ರಶ್ನೆ ${qIndex + 1}/${totalQ})`)}
@@ -368,72 +375,116 @@ class TeacherUI {
         <div class="row g-4">
           <!-- ================= LEFT / MAIN PANEL: QUESTION & OPTIONS ================= -->
           <div class="col-lg-8">
-            <div class="card glass-card shadow-lg p-4 mb-3 border-warning border-opacity-25">
+            <div class="card glass-card shadow-lg p-4 mb-3 ${state.currentCategoryId === 'riddles' ? 'riddle-story-card' : 'border-warning border-opacity-25'}">
               <!-- Question Header Meta -->
               <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="badge bg-danger text-warning px-3 py-2 fs-6 rounded-pill">
-                  <i data-lucide="tag" class="me-1"></i> ${state.currentCategoryName} | ಪ್ರಶ್ನೆ ${qIndex + 1}
+                <span class="badge ${state.currentCategoryId === 'riddles' ? 'bg-warning text-dark fw-bold' : 'bg-danger text-warning'} px-3 py-2 fs-6 rounded-pill">
+                  <i data-lucide="${state.currentCategoryId === 'riddles' ? 'scroll' : (isPhotoQuestion ? 'camera' : 'tag')}" class="me-1"></i> ${state.currentCategoryName} | ಪ್ರಶ್ನೆ ${qIndex + 1}
                 </span>
-                <span class="badge bg-dark border border-secondary text-light px-3 py-2">
-                  <i data-lucide="layers" class="me-1"></i> ಲಭ್ಯವಿರುವ ಆಯ್ಕೆಗಳು: <strong class="text-warning">${remainingCount}</strong>
-                </span>
+                ${isPhotoQuestion ? `
+                  <span class="badge bg-info bg-opacity-25 border border-info text-info px-3 py-2 fs-6">
+                    <i data-lucide="camera" class="me-1"></i> ಚಿತ್ರ ನೋಡಿ ಉತ್ತರಿಸಿ (ನೇರ ಉತ್ತರ)
+                  </span>
+                ` : `
+                  <span class="badge bg-dark border border-secondary text-light px-3 py-2">
+                    <i data-lucide="layers" class="me-1"></i> ಲಭ್ಯವಿರುವ ಆಯ್ಕೆಗಳು: <strong class="text-warning">${remainingCount}</strong>
+                  </span>
+                `}
               </div>
 
               <!-- Question Image for Guess the Photo -->
-              ${state.question.type === 'photo' && state.question.image ? `
-                <div class="text-center mb-4 photo-container rounded border border-secondary overflow-hidden">
-                  <img src="${state.question.image}" alt="Question Image" class="img-fluid rounded quiz-photo-img" 
+              ${isPhotoQuestion || state.question.type === 'photo' || state.question.image ? `
+                <div class="text-center mb-4 photo-container rounded border border-secondary overflow-hidden p-2 bg-dark bg-opacity-50">
+                  <img src="${state.question.image || 'assets/images/photo_placeholder.svg'}" 
+                    onerror="this.src='assets/images/photo_placeholder.svg'" 
+                    alt="Question Image" class="img-fluid rounded quiz-photo-img" 
                     style="max-height: 280px; width: auto; object-fit: contain;">
+                  <div class="mt-2">
+                    <button id="replaceCurrentPhotoBtn" class="btn btn-outline-warning btn-sm">
+                      <i data-lucide="upload" class="me-1"></i> ಚಿತ್ರ ಬದಲಿಸಿ (Replace Image)
+                    </button>
+                    <input type="file" id="photoFileInput" accept="image/*" style="display: none;">
+                  </div>
                 </div>
               ` : ''}
 
               <!-- Question Text in Kannada -->
-              <div class="question-text-box p-3 mb-4 rounded bg-dark bg-opacity-50 border border-secondary">
-                <h3 class="font-kannada text-light fw-bold mb-0 lh-base">
+              <div class="question-text-box p-3 mb-4 rounded ${state.currentCategoryId === 'riddles' ? 'riddle-parchment-box' : 'bg-dark bg-opacity-50 border border-secondary'}">
+                <h3 class="font-kannada fw-bold mb-0 lh-base ${state.currentCategoryId === 'riddles' ? 'riddle-question-text fs-2' : 'text-light'}">
                   ${state.question.text}
                 </h3>
               </div>
 
-              <!-- Options Grid A, B, C, D -->
-              <div class="row g-3 options-grid">
-                ${state.question.options.map((opt, idx) => {
-                  const label = String.fromCharCode(65 + idx); // A, B, C, D
-                  const isEliminated = state.question.eliminatedOptions.includes(opt);
-                  const isCorrect = (opt === state.question.correctAnswer);
-                  const isRevealed = state.display.revealAnswer;
+              ${isPhotoQuestion ? `
+                <!-- GUESS THE PHOTO: NO OPTIONS - TEACHER ANSWER KEY & 2 BUTTONS (RIGHT / WRONG) -->
+                <div class="teacher-answer-key-box p-3 mb-4 rounded bg-dark border border-warning border-opacity-50 text-warning d-flex align-items-center justify-content-between">
+                  <div>
+                    <span class="badge bg-warning text-dark me-2 fs-6"><i data-lucide="key" class="me-1"></i> ಶಿಕ್ಷಕರ ಉತ್ತರ ಕೀ (Answer Key)</span>
+                    <span class="fs-5 font-kannada">ಸರಿಯಾದ ಉತ್ತರ: <strong>${state.question.correctAnswer}</strong></span>
+                  </div>
+                  <span class="badge bg-success fs-6 px-3 py-2">+${currentPoints} ಅಂಕಗಳು</span>
+                </div>
 
-                  let optClass = "btn-option";
-                  let badgeClass = "bg-primary";
+                <div class="row g-3 photo-evaluation-buttons mb-4">
+                  <div class="col-md-6">
+                    <button id="photoRightBtn" class="btn btn-success w-100 py-3 fs-4 fw-bold shadow-lg d-flex align-items-center justify-content-center gap-2 btn-photo-right"
+                      ${state.display.revealAnswer || state.display.phase === 'passing' ? 'disabled' : ''}>
+                      <i data-lucide="check-circle" style="width: 32px; height: 32px;"></i>
+                      <span>ಸರಿ (Right) [+${currentPoints}]</span>
+                    </button>
+                    <div class="text-center small text-secondary mt-1">ಶಾರ್ಟ್‌ಕಟ್: [R] ಅಥವಾ [1]</div>
+                  </div>
+                  <div class="col-md-6">
+                    <button id="photoWrongBtn" class="btn btn-danger w-100 py-3 fs-4 fw-bold shadow-lg d-flex align-items-center justify-content-center gap-2 btn-photo-wrong"
+                      ${state.display.revealAnswer || state.display.phase === 'passing' ? 'disabled' : ''}>
+                      <i data-lucide="x-circle" style="width: 32px; height: 32px;"></i>
+                      <span>ತಪ್ಪು (Wrong) [ಮುಂದಿನ ತಂಡಕ್ಕೆ]</span>
+                    </button>
+                    <div class="text-center small text-secondary mt-1">ಶಾರ್ಟ್‌ಕಟ್: [W] ಅಥವಾ [2] (ಅಂಕ ಕಡಿತವಿಲ್ಲ)</div>
+                  </div>
+                </div>
+              ` : `
+                <!-- Options Grid A, B, C, D -->
+                <div class="row g-3 options-grid">
+                  ${state.question.options.map((opt, idx) => {
+                    const label = String.fromCharCode(65 + idx); // A, B, C, D
+                    const isEliminated = state.question.eliminatedOptions.includes(opt);
+                    const isCorrect = (opt === state.question.correctAnswer);
+                    const isRevealed = state.display.revealAnswer;
 
-                  if (isEliminated) {
-                    optClass += " option-eliminated text-muted";
-                    badgeClass = "bg-secondary";
-                  } else if (isRevealed && isCorrect) {
-                    optClass += " option-correct animate__animated animate__pulse";
-                    badgeClass = "bg-success";
-                  } else if (isRevealed && opt === state.attempt.selectedOption && !isCorrect) {
-                    optClass += " option-wrong";
-                    badgeClass = "bg-danger";
-                  }
+                    let optClass = "btn-option";
+                    let badgeClass = "bg-primary";
 
-                  const isDisabled = isEliminated || isRevealed || state.display.phase === 'passing';
+                    if (isEliminated) {
+                      optClass += " option-eliminated text-muted";
+                      badgeClass = "bg-secondary";
+                    } else if (isRevealed && isCorrect) {
+                      optClass += " option-correct animate__animated animate__pulse";
+                      badgeClass = "bg-success";
+                    } else if (isRevealed && opt === state.attempt.selectedOption && !isCorrect) {
+                      optClass += " option-wrong";
+                      badgeClass = "bg-danger";
+                    }
 
-                  return `
-                    <div class="col-md-6">
-                      <button class="btn btn-dark w-100 text-start p-3 ${optClass} position-relative"
-                        data-option="${opt.replace(/"/g, '&quot;')}"
-                        ${isDisabled ? 'disabled' : ''}>
-                        <div class="d-flex align-items-center">
-                          <span class="badge ${badgeClass} fs-5 me-3 px-3 py-2">${label}</span>
-                          <span class="font-kannada fs-5 fw-semibold option-text">${opt}</span>
-                        </div>
-                        ${isEliminated ? `<span class="badge bg-danger position-absolute top-0 end-0 m-2">ತೆಗೆದುಹಾಕಲಾಗಿದೆ</span>` : ''}
-                        ${isRevealed && isCorrect ? `<span class="badge bg-success position-absolute top-0 end-0 m-2">✓ ಸರಿಯಾದ ಉತ್ತರ</span>` : ''}
-                      </button>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
+                    const isDisabled = isEliminated || isRevealed || state.display.phase === 'passing';
+
+                    return `
+                      <div class="col-md-6">
+                        <button class="btn btn-dark w-100 text-start p-3 ${optClass} position-relative"
+                          data-option="${opt.replace(/"/g, '&quot;')}"
+                          ${isDisabled ? 'disabled' : ''}>
+                          <div class="d-flex align-items-center">
+                            <span class="badge ${badgeClass} fs-5 me-3 px-3 py-2">${label}</span>
+                            <span class="font-kannada fs-5 fw-semibold option-text">${opt}</span>
+                          </div>
+                          ${isEliminated ? `<span class="badge bg-danger position-absolute top-0 end-0 m-2">ತೆಗೆದುಹಾಕಲಾಗಿದೆ</span>` : ''}
+                          ${isRevealed && isCorrect ? `<span class="badge bg-success position-absolute top-0 end-0 m-2">✓ ಸರಿಯಾದ ಉತ್ತರ</span>` : ''}
+                        </button>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              `}
 
               <!-- Evaluation banner if answer revealed -->
               ${state.display.revealAnswer ? `
@@ -441,7 +492,7 @@ class TeacherUI {
                   <div class="d-flex justify-content-between align-items-center">
                     <div>
                       <h4 class="alert-heading font-kannada fw-bold mb-1">
-                        ${state.attempt.result === 'CORRECT' ? '🎉 ಅದ್ಭುತ! ಸರಿಯಾದ ಉತ್ತರ!' : 'ವಿವರಣೆ / Explanation'}
+                        ${state.attempt.result === 'CORRECT' ? '🎉 ಅದ್ಭುತ! ಸರಿಯಾದ ಉತ್ತರ!' : (state.display.passMessage || 'ವಿವರಣೆ / Explanation')}
                       </h4>
                       <p class="mb-1 fs-5">
                         ${state.attempt.result === 'CORRECT' 
@@ -467,11 +518,8 @@ class TeacherUI {
                   <button id="prevQBtn" class="btn btn-outline-light me-2" ${qIndex === 0 ? 'disabled' : ''}>
                     <i data-lucide="chevron-left" class="me-1"></i> ಹಿಂದಿನ ಪ್ರಶ್ನೆ
                   </button>
-                  <button id="skipQBtn" class="btn btn-outline-warning me-2">
-                    <i data-lucide="skip-forward" class="me-1"></i> ಸ್ಕಿಪ್ (Skip)
-                  </button>
-                  <button id="revealAnswerBtn" class="btn btn-outline-info" ${state.display.revealAnswer ? 'disabled' : ''}>
-                    <i data-lucide="eye" class="me-1"></i> ಉತ್ತರ ತೋರಿಸಿ (Reveal)
+                  <button id="skipQBtn" class="btn btn-outline-warning me-2" ${state.display.revealAnswer || state.display.phase === 'passing' ? 'disabled' : ''} title="ಮುಂದಿನ ತಂಡಕ್ಕೆ ಪ್ರಶ್ನೆಯನ್ನು ಪಾಸ್ ಮಾಡಿ">
+                    <i data-lucide="skip-forward" class="me-1"></i> ಪಾಸ್ (Pass)
                   </button>
                 </div>
 
@@ -615,9 +663,12 @@ class TeacherUI {
           ${LeaderboardRenderer.renderTableHtml(ranked, state.currentCategoryId)}
         </div>
 
-        <div class="d-flex justify-content-center gap-3 my-4">
+        <div class="d-flex flex-wrap justify-content-center gap-3 my-4">
           <button id="viewDetailedAuditFromSection" class="btn btn-outline-info btn-lg px-4">
             <i data-lucide="history" class="me-2"></i> ಅಂಕಗಳ ಲೆಕ್ಕಪರಿಶೋಧನೆ (Audit Log)
+          </button>
+          <button id="overallLeaderboardFromSection" class="btn btn-outline-warning btn-lg px-4">
+            <i data-lucide="trophy" class="me-2"></i> ಸಮಗ್ರ ಲೀಡರ್‌ಬೋರ್ಡ್ (Overall Leaderboard)
           </button>
           <button id="nextSectionBtn" class="btn btn-warning btn-lg px-5 fw-bold text-dark shadow pulse-btn">
             ಮುಂದಿನ ವಿಭಾಗಕ್ಕೆ ಮುಂದುವರಿಯಿರಿ <i data-lucide="arrow-right" class="ms-2"></i>
@@ -631,6 +682,9 @@ class TeacherUI {
 
     const auditBtn = document.getElementById('viewDetailedAuditFromSection');
     if (auditBtn) auditBtn.onclick = () => this.openScoreAuditModal();
+
+    const leadBtn = document.getElementById('overallLeaderboardFromSection');
+    if (leadBtn) leadBtn.onclick = () => this.openLeaderboardModal();
 
     const nextSecBtn = document.getElementById('nextSectionBtn');
     if (nextSecBtn) nextSecBtn.onclick = () => this.engine.proceedToNextSection();
@@ -877,6 +931,23 @@ class TeacherUI {
       };
     });
 
+    // Guess the Photo: Right & Wrong Evaluation Buttons
+    const photoRightBtn = document.getElementById('photoRightBtn');
+    if (photoRightBtn) {
+      photoRightBtn.onclick = () => {
+        if (typeof soundManager !== 'undefined') soundManager.init();
+        this.engine.evaluatePhotoAnswer(true);
+      };
+    }
+
+    const photoWrongBtn = document.getElementById('photoWrongBtn');
+    if (photoWrongBtn) {
+      photoWrongBtn.onclick = () => {
+        if (typeof soundManager !== 'undefined') soundManager.init();
+        this.engine.evaluatePhotoAnswer(false);
+      };
+    }
+
     const nextQBtn = document.getElementById('dashboardNextBtn');
     if (nextQBtn) {
       nextQBtn.onclick = () => this.engine.nextQuestion();
@@ -891,21 +962,38 @@ class TeacherUI {
     if (skipQBtn) {
       skipQBtn.onclick = () => {
         Swal.fire({
-          title: 'ಪ್ರಶ್ನೆಯನ್ನು ಸ್ಕಿಪ್ ಮಾಡಬೇಕೆ?',
-          text: 'ಯಾವುದೇ ತಂಡಕ್ಕೆ ಅಂಕಗಳನ್ನು ನೀಡಲಾಗುವುದಿಲ್ಲ.',
-          icon: 'warning',
+          title: 'ಪ್ರಶ್ನೆಯನ್ನು ಪಾಸ್ ಮಾಡಬೇಕೇ?',
+          text: 'ಈ ಪ್ರಶ್ನೆಯನ್ನು ಮುಂದಿನ ತಂಡಕ್ಕೆ ವರ್ಗಾಯಿಸಲಾಗುತ್ತದೆ.',
+          icon: 'question',
           showCancelButton: true,
-          confirmButtonText: 'ಹೌದು, ಸ್ಕಿಪ್ ಮಾಡಿ',
-          cancelButtonText: 'ರದ್ದು'
+          confirmButtonColor: '#f59e0b',
+          cancelButtonColor: '#6b7280',
+          confirmButtonText: 'ಹೌದು, ಪಾಸ್ ಮಾಡಿ (Pass)',
+          cancelButtonText: 'ರದ್ದು (Cancel)'
         }).then(res => {
-          if (res.isConfirmed) this.engine.skipQuestion();
+          if (res.isConfirmed) this.engine.passQuestion();
         });
       };
     }
 
-    const revealBtn = document.getElementById('revealAnswerBtn');
-    if (revealBtn) {
-      revealBtn.onclick = () => this.engine.revealAnswerManually();
+    const replacePhotoBtn = document.getElementById('replaceCurrentPhotoBtn');
+    const photoFileInput = document.getElementById('photoFileInput');
+    if (replacePhotoBtn && photoFileInput) {
+      replacePhotoBtn.onclick = () => photoFileInput.click();
+      photoFileInput.onchange = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (uploadEvt) => {
+            const dataUrl = uploadEvt.target.result;
+            this.engine.state.question.image = dataUrl;
+            this.questionManager.updateQuestion(this.engine.state.question.id, { image: dataUrl });
+            this.engine.notifyStateChange('QUESTION_UPDATED');
+            this.render();
+          };
+          reader.readAsDataURL(file);
+        }
+      };
     }
 
     const pauseResumeBtn = document.getElementById('pauseResumeTimerBtn');
@@ -1149,26 +1237,97 @@ class TeacherUI {
     window.open(url, '_blank');
   }
 
-  openQuestionManagerModal() {
-    const questions = this.questionManager.getAllQuestions();
+  openQuestionManagerModal(selectedCategoryId = 'all') {
+    const isRunning = (this.engine.state.status === 'running');
+    const allQuestions = this.questionManager.getAllQuestions();
     const categories = QUIZ_CATEGORIES;
+    const filtered = selectedCategoryId === 'all' 
+      ? allQuestions 
+      : allQuestions.filter(q => q.categoryId === selectedCategoryId || q.category === selectedCategoryId);
 
-    let qListHtml = questions.slice(0, 15).map(q => `
-      <div class="d-flex justify-content-between align-items-center p-2 mb-2 rounded bg-dark border border-secondary border-opacity-50">
-        <div>
-          <span class="badge bg-secondary me-2">${q.category}</span>
-          <span class="text-light font-kannada">${q.question.substring(0, 45)}...</span>
-        </div>
-        <div>
-          <span class="badge bg-success">${q.answer}</span>
-        </div>
-      </div>
-    `).join('');
+    let qListHtml = '';
+    if (filtered.length === 0) {
+      qListHtml = `<div class="text-center text-muted py-4">ಈ ವಿಭಾಗದಲ್ಲಿ ಯಾವುದೇ ಪ್ರಶ್ನೆಗಳಿಲ್ಲ</div>`;
+    } else {
+      qListHtml = filtered.map((q, idx) => {
+        const isEnabled = q.enabled !== false;
+        return `
+          <div class="qm-question-item d-flex justify-content-between align-items-center p-2 mb-2 rounded bg-dark border border-secondary border-opacity-50">
+            <div class="d-flex align-items-center flex-grow-1 me-2 overflow-hidden">
+              <span class="badge ${isEnabled ? 'bg-secondary' : 'bg-danger'} me-2 flex-shrink-0" style="font-size: 11px;">
+                ${q.category}
+              </span>
+              <span class="text-light font-kannada text-truncate ${!isEnabled ? 'text-decoration-line-through opacity-50' : ''}" style="max-width: 380px;">
+                ${idx + 1}. ${q.question}
+              </span>
+            </div>
+            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+              <span class="badge bg-success me-1" title="ಸರಿಯಾದ ಉತ್ತರ">${q.answer}</span>
+              ${q.image ? `<span class="badge bg-info text-dark" title="ಚಿತ್ರ ಸಹಿತ"><i data-lucide="image" style="width: 12px; height: 12px;"></i></span>` : ''}
+              
+              <!-- Toggle Enabled/Disabled -->
+              <button class="btn btn-sm ${isEnabled ? 'btn-outline-success' : 'btn-outline-secondary'} toggle-enable-q-btn py-0 px-2" 
+                data-id="${q.id}" title="${isEnabled ? 'ಸಕ್ರಿಯ (Active)' : 'ನಿಷ್ಕ್ರಿಯ (Disabled)'}" ${isRunning ? 'disabled' : ''}>
+                ${isEnabled ? '✓' : '✗'}
+              </button>
+
+              <!-- Reorder Up/Down -->
+              <button class="btn btn-sm btn-outline-secondary move-q-btn py-0 px-1" data-id="${q.id}" data-dir="up" title="ಮೇಲಕ್ಕೆ" ${isRunning ? 'disabled' : ''}>
+                ▲
+              </button>
+              <button class="btn btn-sm btn-outline-secondary move-q-btn py-0 px-1" data-id="${q.id}" data-dir="down" title="ಕೆಳಕ್ಕೆ" ${isRunning ? 'disabled' : ''}>
+                ▼
+              </button>
+
+              <!-- Edit -->
+              <button class="btn btn-sm btn-outline-warning edit-q-btn py-0 px-2" data-id="${q.id}" title="ಸಂಪಾದಿಸಿ" ${isRunning ? 'disabled' : ''}>
+                <i data-lucide="edit-2" style="width: 13px; height: 13px;"></i>
+              </button>
+
+              <!-- Delete -->
+              <button class="btn btn-sm btn-outline-danger delete-q-btn py-0 px-2" data-id="${q.id}" title="ತೆಗೆದುಹಾಕಿ" ${isRunning ? 'disabled' : ''}>
+                <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
 
     const content = `
       <div class="text-start">
-        <p class="text-muted small">ಒಟ್ಟು ${questions.length} ಪ್ರಶ್ನೆಗಳು ಭಂಡಾರದಲ್ಲಿ ಲಭ್ಯವಿವೆ (6 ವಿಭಾಗಗಳು). ಶಿಕ್ಷಕರು ಪ್ರಶ್ನೆಗಳನ್ನು ವೀಕ್ಷಿಸಬಹುದು ಹಾಗೂ ಮರುಹೊಂದಿಸಬಹುದು.</p>
-        <div style="max-height: 280px; overflow-y: auto;">
+        ${isRunning ? `
+          <div class="alert alert-warning py-2 px-3 small d-flex align-items-center mb-3">
+            <i data-lucide="alert-triangle" class="me-2 text-danger"></i>
+            <span><strong>ಗಮನಿಸಿ:</strong> ಸ್ಪರ್ಧೆ ಚಾಲ್ತಿಯಲ್ಲಿರುವಾಗ ಪ್ರಶ್ನೆಗಳ ಬದಲಾವಣೆ ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ.</span>
+          </div>
+        ` : ''}
+
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <!-- Category Filter -->
+          <div class="d-flex align-items-center gap-2">
+            <label class="text-light small fw-bold">ವಿಭಾಗ:</label>
+            <select id="qmCategoryFilter" class="form-select form-select-sm bg-dark text-warning border-secondary" style="width: 180px;">
+              <option value="all" ${selectedCategoryId === 'all' ? 'selected' : ''}>ಎಲ್ಲಾ ವಿಭಾಗಗಳು (${allQuestions.length})</option>
+              ${categories.map(c => `
+                <option value="${c.id}" ${selectedCategoryId === c.id ? 'selected' : ''}>${c.name} (${allQuestions.filter(q => q.categoryId === c.id).length})</option>
+              `).join('')}
+            </select>
+          </div>
+
+          <!-- Add & Reset Buttons -->
+          <div class="d-flex gap-2">
+            <button id="qmAddNewBtn" class="btn btn-warning btn-sm text-dark fw-bold" ${isRunning ? 'disabled' : ''}>
+              <i data-lucide="plus" class="me-1"></i> + ಹೊಸ ಪ್ರಶ್ನೆ
+            </button>
+            <button id="qmResetDefaultBtn" class="btn btn-outline-danger btn-sm" ${isRunning ? 'disabled' : ''}>
+              <i data-lucide="rotate-ccw" class="me-1"></i> ಮರುಹೊಂದಿಸಿ
+            </button>
+          </div>
+        </div>
+
+        <!-- Question List Container -->
+        <div style="max-height: 380px; overflow-y: auto; padding-right: 4px;">
           ${qListHtml}
         </div>
       </div>
@@ -1177,10 +1336,405 @@ class TeacherUI {
     Swal.fire({
       title: '📚 ಪ್ರಶ್ನಾವಳಿ ನಿರ್ವಹಣೆ (Question Management)',
       html: content,
-      width: '780px',
+      width: '880px',
       showCloseButton: true,
-      confirmButtonText: 'ಸರಿ (Close)',
+      confirmButtonText: 'ಮುಚ್ಚಿರಿ (Close)',
       confirmButtonColor: '#f59e0b'
+    });
+
+    if (window.lucide) lucide.createIcons();
+
+    // Hook filter change
+    const filterSelect = document.getElementById('qmCategoryFilter');
+    if (filterSelect) {
+      filterSelect.onchange = (e) => this.openQuestionManagerModal(e.target.value);
+    }
+
+    // Hook Add New Question
+    const addBtn = document.getElementById('qmAddNewBtn');
+    if (addBtn) {
+      addBtn.onclick = () => this._showAddQuestionDialog(selectedCategoryId);
+    }
+
+    // Hook Reset Defaults
+    const resetBtn = document.getElementById('qmResetDefaultBtn');
+    if (resetBtn) {
+      resetBtn.onclick = () => {
+        Swal.fire({
+          title: 'ಪ್ರಶ್ನೆ ಭಂಡಾರವನ್ನು ಮರುಹೊಂದಿಸಬೇಕೆ?',
+          text: 'ಎಲ್ಲಾ ಕಸ್ಟಮ್ ಸೇರ್ಪಡೆಗಳು ರದ್ದಾಗುತ್ತವೆ.',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'ಹೌದು, ಮರುಹೊಂದಿಸಿ',
+          cancelButtonText: 'ರದ್ದು',
+          confirmButtonColor: '#dc2626'
+        }).then(res => {
+          if (res.isConfirmed) {
+            this.questionManager.resetToDefault(DEFAULT_QUESTIONS);
+            this.engine.questions = this.questionManager.getAllQuestions();
+            this.openQuestionManagerModal(selectedCategoryId);
+          }
+        });
+      };
+    }
+
+    // Hook Item Actions
+    document.querySelectorAll('.toggle-enable-q-btn').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-id');
+        this.questionManager.toggleEnable(id);
+        this.engine.questions = this.questionManager.getAllQuestions();
+        this.openQuestionManagerModal(selectedCategoryId);
+      };
+    });
+
+    document.querySelectorAll('.move-q-btn').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-id');
+        const dir = btn.getAttribute('data-dir');
+        this.questionManager.moveQuestion(id, dir);
+        this.engine.questions = this.questionManager.getAllQuestions();
+        this.openQuestionManagerModal(selectedCategoryId);
+      };
+    });
+
+    document.querySelectorAll('.delete-q-btn').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-id');
+        Swal.fire({
+          title: 'ಪ್ರಶ್ನೆಯನ್ನು ಅಳಿಸಬೇಕೆ?',
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'ಹೌದು, ಅಳಿಸಿ',
+          cancelButtonText: 'ರದ್ದು',
+          confirmButtonColor: '#dc2626'
+        }).then(res => {
+          if (res.isConfirmed) {
+            this.questionManager.deleteQuestion(id);
+            this.engine.questions = this.questionManager.getAllQuestions();
+            this.openQuestionManagerModal(selectedCategoryId);
+          }
+        });
+      };
+    });
+
+    document.querySelectorAll('.edit-q-btn').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute('data-id');
+        this._showEditQuestionDialog(id, selectedCategoryId);
+      };
+    });
+  }
+
+  _showAddQuestionDialog(currentCatId = 'all') {
+    const categories = QUIZ_CATEGORIES;
+    const defaultCat = currentCatId === 'all' ? 'gk' : currentCatId;
+
+    const formHtml = `
+      <div class="text-start font-kannada">
+        <div class="mb-3">
+          <label class="form-label text-light small fw-bold">ವಿಭಾಗ (Category):</label>
+          <select id="newQCat" class="form-select bg-dark text-warning border-secondary">
+            ${categories.map(c => `
+              <option value="${c.id}" data-name="${c.name}" ${c.id === defaultCat ? 'selected' : ''}>${c.name} (${c.englishName})</option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small fw-bold">ಪ್ರಶ್ನೆ (Question in Kannada):</label>
+          <textarea id="newQText" class="form-control bg-dark text-light border-secondary" rows="2" placeholder="ಕನ್ನಡದಲ್ಲಿ ಪ್ರಶ್ನೆ ನಮೂದಿಸಿ..." required></textarea>
+        </div>
+
+        <div id="newQMcqOptionsWrap">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ A (Option A):</label>
+              <input type="text" id="newQOptA" class="form-control bg-dark text-light border-secondary" placeholder="ಆಯ್ಕೆ A">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ B (Option B):</label>
+              <input type="text" id="newQOptB" class="form-control bg-dark text-light border-secondary" placeholder="ಆಯ್ಕೆ B">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ C (Option C):</label>
+              <input type="text" id="newQOptC" class="form-control bg-dark text-light border-secondary" placeholder="ಆಯ್ಕೆ C">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ D (Option D):</label>
+              <input type="text" id="newQOptD" class="form-control bg-dark text-light border-secondary" placeholder="ಆಯ್ಕೆ D">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-light small fw-bold">ಸರಿಯಾದ ಉತ್ತರ (Correct Answer):</label>
+            <select id="newQCorrect" class="form-select bg-dark text-success border-success">
+              <option value="A">ಆಯ್ಕೆ A</option>
+              <option value="B">ಆಯ್ಕೆ B</option>
+              <option value="C">ಆಯ್ಕೆ C</option>
+              <option value="D">ಆಯ್ಕೆ D</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="newQPhotoAnswerWrap" class="mb-3" style="display: none;">
+          <label class="form-label text-light small fw-bold">ಸರಿಯಾದ ಉತ್ತರ (ವ್ಯಕ್ತಿ/ಸ್ಥಳ/ವಸ್ತುವಿನ ಹೆಸರು):</label>
+          <input type="text" id="newQPhotoAnswer" class="form-control bg-dark text-success border-success" placeholder="ಸರಿಯಾದ ಉತ್ತರ ನಮೂದಿಸಿ...">
+          <div class="form-text text-secondary small">ಚಿತ್ರ ನೋಡಿ ಉತ್ತರಿಸಿ ವಿಭಾಗಕ್ಕೆ ಯಾವುದೇ ಬಹು ಆಯ್ಕೆಗಳ ಅಗತ್ಯವಿಲ್ಲ (No options needed).</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small">ಚಿತ್ರ ಅಪ್‌ಲೋಡ್ (Image Upload - Optional):</label>
+          <input type="file" id="newQImageFile" class="form-control bg-dark text-light border-secondary" accept="image/*">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small">ವಿವರಣೆ (Explanation - Optional):</label>
+          <input type="text" id="newQExplanation" class="form-control bg-dark text-light border-secondary" placeholder="ಉತ್ತರದ ವಿವರಣೆ...">
+        </div>
+      </div>
+    `;
+
+    Swal.fire({
+      title: '➕ ಹೊಸ ಪ್ರಶ್ನೆ ಸೇರಿಸಿ (Add Question)',
+      html: formHtml,
+      width: '700px',
+      showCancelButton: true,
+      confirmButtonText: 'ಸೇರಿಸಿ (Save Question)',
+      cancelButtonText: 'ರದ್ದು',
+      confirmButtonColor: '#f59e0b',
+      didOpen: () => {
+        const catSelect = document.getElementById('newQCat');
+        const updateVisibility = () => {
+          const isPhoto = catSelect.value === 'photo';
+          const optsWrap = document.getElementById('newQMcqOptionsWrap');
+          const photoWrap = document.getElementById('newQPhotoAnswerWrap');
+          if (optsWrap) optsWrap.style.display = isPhoto ? 'none' : 'block';
+          if (photoWrap) photoWrap.style.display = isPhoto ? 'block' : 'none';
+        };
+        catSelect.onchange = updateVisibility;
+        updateVisibility();
+      },
+      preConfirm: () => {
+        const catSelect = document.getElementById('newQCat');
+        const catId = catSelect.value;
+        const catName = catSelect.options[catSelect.selectedIndex].getAttribute('data-name');
+        const text = (document.getElementById('newQText').value || '').trim();
+        const explanation = (document.getElementById('newQExplanation').value || '').trim();
+
+        if (catId === 'photo') {
+          const photoAns = (document.getElementById('newQPhotoAnswer').value || '').trim();
+          if (!text || !photoAns) {
+            Swal.showValidationMessage('ದಯವಿಟ್ಟು ಪ್ರಶ್ನೆ ಮತ್ತು ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಭರ್ತಿ ಮಾಡಿ');
+            return false;
+          }
+          return { catId, catName, text, options: [], answer: photoAns, explanation };
+        } else {
+          const optA = (document.getElementById('newQOptA').value || '').trim();
+          const optB = (document.getElementById('newQOptB').value || '').trim();
+          const optC = (document.getElementById('newQOptC').value || '').trim();
+          const optD = (document.getElementById('newQOptD').value || '').trim();
+          const correctChoice = document.getElementById('newQCorrect').value;
+
+          if (!text || !optA || !optB || !optC || !optD) {
+            Swal.showValidationMessage('ದಯವಿಟ್ಟು ಪ್ರಶ್ನೆ ಮತ್ತು ಎಲ್ಲಾ 4 ಆಯ್ಕೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ');
+            return false;
+          }
+
+          const options = [optA, optB, optC, optD];
+          const answerMap = { 'A': optA, 'B': optB, 'C': optC, 'D': optD };
+          const answer = answerMap[correctChoice];
+
+          return { catId, catName, text, options, answer, explanation };
+        }
+      }
+    }).then(res => {
+      if (res.isConfirmed && res.value) {
+        const { catId, catName, text, options, answer, explanation } = res.value;
+        const fileInput = document.getElementById('newQImageFile');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+
+        const saveIt = (imgData = null) => {
+          this.questionManager.addQuestion({
+            category: catName,
+            categoryId: catId,
+            question: text,
+            options: options,
+            answer: answer,
+            explanation: explanation,
+            type: catId === 'photo' || imgData ? 'photo' : (catId === 'riddles' ? 'riddle' : 'mcq'),
+            image: imgData
+          });
+          this.engine.questions = this.questionManager.getAllQuestions();
+          this.openQuestionManagerModal(catId);
+        };
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => saveIt(e.target.result);
+          reader.readAsDataURL(file);
+        } else {
+          saveIt(null);
+        }
+      }
+    });
+  }
+
+  _showEditQuestionDialog(qId, currentCatId = 'all') {
+    const q = this.questionManager.getQuestionById(qId);
+    if (!q) return;
+
+    const categories = QUIZ_CATEGORIES;
+    const formHtml = `
+      <div class="text-start font-kannada">
+        <div class="mb-3">
+          <label class="form-label text-light small fw-bold">ವಿಭಾಗ (Category):</label>
+          <select id="editQCat" class="form-select bg-dark text-warning border-secondary">
+            ${categories.map(c => `
+              <option value="${c.id}" data-name="${c.name}" ${c.id === q.categoryId ? 'selected' : ''}>${c.name} (${c.englishName})</option>
+            `).join('')}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small fw-bold">ಪ್ರಶ್ನೆ (Question):</label>
+          <textarea id="editQText" class="form-control bg-dark text-light border-secondary" rows="2" required>${q.question}</textarea>
+        </div>
+
+        <div id="editQMcqOptionsWrap">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ A:</label>
+              <input type="text" id="editQOptA" class="form-control bg-dark text-light border-secondary" value="${(q.options && q.options[0]) || ''}">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ B:</label>
+              <input type="text" id="editQOptB" class="form-control bg-dark text-light border-secondary" value="${(q.options && q.options[1]) || ''}">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ C:</label>
+              <input type="text" id="editQOptC" class="form-control bg-dark text-light border-secondary" value="${(q.options && q.options[2]) || ''}">
+            </div>
+            <div class="col-6">
+              <label class="form-label text-light small">ಆಯ್ಕೆ D:</label>
+              <input type="text" id="editQOptD" class="form-control bg-dark text-light border-secondary" value="${(q.options && q.options[3]) || ''}">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-light small fw-bold">ಸರಿಯಾದ ಉತ್ತರ (Correct Answer):</label>
+            <select id="editQCorrect" class="form-select bg-dark text-success border-success">
+              <option value="0" ${q.options && q.answer === q.options[0] ? 'selected' : ''}>ಆಯ್ಕೆ A (${(q.options && q.options[0]) || ''})</option>
+              <option value="1" ${q.options && q.answer === q.options[1] ? 'selected' : ''}>ಆಯ್ಕೆ B (${(q.options && q.options[1]) || ''})</option>
+              <option value="2" ${q.options && q.answer === q.options[2] ? 'selected' : ''}>ಆಯ್ಕೆ C (${(q.options && q.options[2]) || ''})</option>
+              <option value="3" ${q.options && q.answer === q.options[3] ? 'selected' : ''}>ಆಯ್ಕೆ D (${(q.options && q.options[3]) || ''})</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="editQPhotoAnswerWrap" class="mb-3" style="display: none;">
+          <label class="form-label text-light small fw-bold">ಸರಿಯಾದ ಉತ್ತರ (ವ್ಯಕ್ತಿ/ಸ್ಥಳ/ವಸ್ತುವಿನ ಹೆಸರು):</label>
+          <input type="text" id="editQPhotoAnswer" class="form-control bg-dark text-success border-success" value="${q.answer || ''}">
+          <div class="form-text text-secondary small">ಚಿತ್ರ ನೋಡಿ ಉತ್ತರಿಸಿ ವಿಭಾಗಕ್ಕೆ ಯಾವುದೇ ಬಹು ಆಯ್ಕೆಗಳ ಅಗತ್ಯವಿಲ್ಲ (No options needed).</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small">ಚಿತ್ರ ಬದಲಿಸಿ (Change Image - Optional):</label>
+          ${q.image ? `<div class="mb-2"><img src="${q.image}" class="qm-image-preview" alt="Preview"></div>` : ''}
+          <input type="file" id="editQImageFile" class="form-control bg-dark text-light border-secondary" accept="image/*">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label text-light small">ವಿವರಣೆ (Explanation):</label>
+          <input type="text" id="editQExplanation" class="form-control bg-dark text-light border-secondary" value="${q.explanation || ''}">
+        </div>
+      </div>
+    `;
+
+    Swal.fire({
+      title: '✏️ ಪ್ರಶ್ನೆ ಸಂಪಾದಿಸಿ (Edit Question)',
+      html: formHtml,
+      width: '700px',
+      showCancelButton: true,
+      confirmButtonText: 'ಉಳಿಸಿ (Save Changes)',
+      cancelButtonText: 'ರದ್ದು',
+      confirmButtonColor: '#f59e0b',
+      didOpen: () => {
+        const catSelect = document.getElementById('editQCat');
+        const updateVisibility = () => {
+          const isPhoto = catSelect.value === 'photo';
+          const optsWrap = document.getElementById('editQMcqOptionsWrap');
+          const photoWrap = document.getElementById('editQPhotoAnswerWrap');
+          if (optsWrap) optsWrap.style.display = isPhoto ? 'none' : 'block';
+          if (photoWrap) photoWrap.style.display = isPhoto ? 'block' : 'none';
+        };
+        catSelect.onchange = updateVisibility;
+        updateVisibility();
+      },
+      preConfirm: () => {
+        const catSelect = document.getElementById('editQCat');
+        const catId = catSelect.value;
+        const catName = catSelect.options[catSelect.selectedIndex].getAttribute('data-name');
+        const text = (document.getElementById('editQText').value || '').trim();
+        const explanation = (document.getElementById('editQExplanation').value || '').trim();
+
+        if (catId === 'photo') {
+          const photoAns = (document.getElementById('editQPhotoAnswer').value || '').trim();
+          if (!text || !photoAns) {
+            Swal.showValidationMessage('ದಯವಿಟ್ಟು ಪ್ರಶ್ನೆ ಮತ್ತು ಸರಿಯಾದ ಉತ್ತರವನ್ನು ಭರ್ತಿ ಮಾಡಿ');
+            return false;
+          }
+          return { catId, catName, text, options: [], answer: photoAns, explanation };
+        } else {
+          const optA = (document.getElementById('editQOptA').value || '').trim();
+          const optB = (document.getElementById('editQOptB').value || '').trim();
+          const optC = (document.getElementById('editQOptC').value || '').trim();
+          const optD = (document.getElementById('editQOptD').value || '').trim();
+          const correctChoice = parseInt(document.getElementById('editQCorrect').value, 10);
+
+          if (!text || !optA || !optB || !optC || !optD) {
+            Swal.showValidationMessage('ದಯವಿಟ್ಟು ಪ್ರಶ್ನೆ ಮತ್ತು ಎಲ್ಲಾ 4 ಆಯ್ಕೆಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ');
+            return false;
+          }
+
+          const options = [optA, optB, optC, optD];
+          const answer = options[correctChoice] || optA;
+
+          return { catId, catName, text, options, answer, explanation };
+        }
+      }
+    }).then(res => {
+      if (res.isConfirmed && res.value) {
+        const { catId, catName, text, options, answer, explanation } = res.value;
+        const fileInput = document.getElementById('editQImageFile');
+        const file = fileInput && fileInput.files && fileInput.files[0];
+
+        const saveUpdated = (imgData = null) => {
+          const updatePayload = {
+            category: catName,
+            categoryId: catId,
+            question: text,
+            options: options,
+            answer: answer,
+            explanation: explanation
+          };
+          if (imgData || catId === 'photo') {
+            if (imgData) updatePayload.image = imgData;
+            updatePayload.type = 'photo';
+          }
+          this.questionManager.updateQuestion(qId, updatePayload);
+          this.engine.questions = this.questionManager.getAllQuestions();
+          this.openQuestionManagerModal(currentCatId);
+        };
+
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (e) => saveUpdated(e.target.result);
+          reader.readAsDataURL(file);
+        } else {
+          saveUpdated(null);
+        }
+      }
     });
   }
 
@@ -1193,13 +1747,40 @@ class TeacherUI {
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
 
+      // Do not trigger quiz actions if any modal dialog is currently visible
+      if (typeof Swal !== 'undefined' && Swal.isVisible()) {
+        if (e.key === 'Escape') {
+          Swal.close();
+        }
+        return;
+      }
+
       if (this.engine.state.status === 'running') {
-        // Numbers 1, 2, 3, 4 to select options A, B, C, D
-        if (['1', '2', '3', '4'].includes(e.key)) {
-          const optIdx = parseInt(e.key, 10) - 1;
-          const options = this.engine.state.question.options;
-          if (options && options[optIdx]) {
-            this.engine.evaluateAnswer(options[optIdx]);
+        const isPhotoQuestion = this.engine.state.question.type === 'photo' || this.engine.state.question.categoryId === 'photo' || this.engine.state.currentCategoryId === 'photo';
+
+        if (isPhotoQuestion) {
+          // Photo evaluation shortcuts: 'R'/'1' for Right, 'W'/'2' for Wrong
+          if ((e.key === 'r' || e.key === 'R' || e.key === '1') && !this.engine.state.display.revealAnswer && this.engine.state.display.phase !== 'passing') {
+            e.preventDefault();
+            if (typeof soundManager !== 'undefined') soundManager.init();
+            this.engine.evaluatePhotoAnswer(true);
+          } else if ((e.key === 'w' || e.key === 'W' || e.key === '2') && !this.engine.state.display.revealAnswer && this.engine.state.display.phase !== 'passing') {
+            e.preventDefault();
+            if (typeof soundManager !== 'undefined') soundManager.init();
+            this.engine.evaluatePhotoAnswer(false);
+          }
+        } else {
+          // Numbers 1, 2, 3, 4 to select options A, B, C, D
+          if (['1', '2', '3', '4'].includes(e.key)) {
+            const optIdx = parseInt(e.key, 10) - 1;
+            const options = this.engine.state.question.options;
+            if (options && options[optIdx]) {
+              const opt = options[optIdx];
+              // Only select if not already eliminated
+              if (!this.engine.state.question.eliminatedOptions.includes(opt)) {
+                this.engine.evaluateAnswer(opt);
+              }
+            }
           }
         }
 
@@ -1216,6 +1797,11 @@ class TeacherUI {
         // L: Leaderboard
         if (e.key === 'l' || e.key === 'L') {
           this.openLeaderboardModal();
+        }
+
+        // P: Pass question to next team
+        if ((e.key === 'p' || e.key === 'P') && !this.engine.state.display.revealAnswer && this.engine.state.display.phase !== 'passing') {
+          this.engine.passQuestion();
         }
 
         // Enter: Continue to next question if question is finished

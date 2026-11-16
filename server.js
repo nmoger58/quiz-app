@@ -183,17 +183,28 @@ function getLocalIpAddress() {
   return 'localhost';
 }
 
-if (require.main === module) {
-  server.listen(PORT, () => {
+function startServer(port = PORT, callback) {
+  return server.listen(port, () => {
     const localIp = getLocalIpAddress();
     console.log('================================================================');
     console.log('🚩 ಕನ್ನಡ ಕ್ವಿಜ್ ಅರೆನಾ (KANNADA QUIZ ARENA) - ಸರ್ವರ್ ಆರಂಭವಾಗಿದೆ');
     console.log('================================================================');
-    console.log(`📡 Local Host:       http://localhost:${PORT}`);
-    console.log(`🌐 Wi-Fi / Network:  http://${localIp}:${PORT}`);
-    console.log(`📽️ Projector Display: http://${localIp}:${PORT}/projector`);
+    console.log(`📡 Local Host:       http://localhost:${port}`);
+    console.log(`🌐 Wi-Fi / Network:  http://${localIp}:${port}`);
+    console.log(`📽️ Projector Display: http://${localIp}:${port}/projector`);
     console.log('================================================================');
+    if (callback) callback();
   });
 }
 
-module.exports = { server, wss, sessions, getLocalIpAddress };
+function stopServer(callback) {
+  wss.close(() => {
+    server.close(callback);
+  });
+}
+
+if (require.main === module) {
+  startServer(PORT);
+}
+
+module.exports = { server, wss, sessions, getLocalIpAddress, startServer, stopServer, PORT };
